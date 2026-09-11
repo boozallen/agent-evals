@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Validate version consistency
+        run: |
+          TOML_VERSION=$(python -c "
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data['project']['version'])
+          ")
+          if [ "$TOML_VERSION" != "${{ steps.tag.outputs.version }}" ]; then
+            echo "::error::Tag version (${{ steps.tag.outputs.version }}) does not match pyproject.toml version ($TOML_VERSION)"
+            exit 1
+          fi
+
+      - name: Lint
+        run: |
+          uv run ruff check src/ tests/
+          uv run bandit -c pyproject.toml -r src/agent_evals -t B602,B603,B605,B607
+
+      - name: Format check
+        run: uv run ruff format --check src/ tests/
+
+      - name: Type-check
+        run: uv run ty check src/
+
+      - name: Check architecture import boundaries
+        run: uv run lint-imports
+
+      - name: Test
+        run: uv run pytest tests/
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Install cyclonedx-py
+        run: uv tool install cyclonedx-bom==7.3.0
+
+      - name: Generate SBOM
+        run: |
+          uv export --no-hashes --no-header --frozen | \
+          cyclonedx-py requirements \
+            --pyproject pyproject.toml \
+            --mc-type library \
+            --of JSON \
+            -o dist/agent-evals-sbom.json -
+
+      - name: Install Grype
+        run: |
+          curl -sSfL \
+            https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Run Grype scan
+        id: grype
+        continue-on-error: true
+        run: |
+          grype dist/*.whl -o json > dist/agent-evals-grype.json
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ASSETS=(
+            dist/*.whl
+            dist/*.tar.gz
+            dist/agent-evals-sbom.json
+          )
+          GRYPE_REPORT="dist/agent-evals-grype.json"
+          if [ -f "$GRYPE_REPORT" ]; then
+            ASSETS+=("$GRYPE_REPORT")
+          fi
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "agent-evals v${{ steps.tag.outputs.version }}" \
+            --generate-notes \
+            "${ASSETS[@]}"
+
+  install-validation:
+    runs-on: ubuntu-latest
+    needs: build-release
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
+
+      # Authenticates the git+https clone below regardless of whether this
+      # repo is still private at tag-push time — release.yml's tag trigger
+      # doesn't guarantee the "make public" step has happened yet, and a
+      # bare git+https clone of a private repo has no credentials otherwise.
+      - name: Configure git for token auth
+        run: git config --global url."https://x-access-token:${{ github.token }}@github.com/".insteadOf "https://github.com/"
+
+      # A bare `pip install <wheel>` cannot resolve foundry-agent-core: the
+      # [tool.uv.sources] GitHub-Release-wheel override is a uv-project-
+      # resolution concept and never propagates into a built wheel's own
+      # Requires-Dist metadata (confirmed empirically during the 1.0.0
+      # release). The real, documented install path is a git dependency
+      # pinned to this tag, which resolves against the tagged commit's own
+      # pyproject.toml/uv.lock — so that's what this validates instead.
+      - name: Validate install and import (git dependency, pinned to this tag)
+        run: |
+          mkdir -p /tmp/install-validation
+          cd /tmp/install-validation
+          uv init --python ${{ env.PYTHON_VERSION }} -q
+          uv add --dev "agent-evals @ git+https://github.com/${{ github.repository }}@${{ github.ref_name }}"
+          uv run python -c "import agent_evals; print('Import OK:', agent_evals.__version__)"
