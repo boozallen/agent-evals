@@ -1,0 +1,19 @@
+# Code Owners for agent-evals
+# These users/teams will be automatically requested for review on PRs
+# that modify matching files.
+
+# Default owners for everything in the repo
+* @boozallen/agent-foundry-admins
+
+# Infrastructure and CI
+.github/ @boozallen/agent-foundry-admins
+justfile @boozallen/agent-foundry-admins
+pyproject.toml @boozallen/agent-foundry-admins
+uv.lock @boozallen/agent-foundry-admins
+
+# Public API surface — additions require the __all__ review checklist
+src/agent_evals/__init__.py @boozallen/agent-foundry-admins
+
+# Security-sensitive files
+SECURITY.md @boozallen/agent-foundry-admins
+security/ @boozallen/agent-foundry-admins

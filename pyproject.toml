@@ -1,0 +1,208 @@
+[project]
+name = "agent-evals"
+version = "1.0.0"
+license = "Apache-2.0"
+license-files = ["LICENSE*", "NOTICE*"]
+description = "Platform-agnostic agent evaluation framework for Agent Foundry"
+readme = "README.md"
+authors = [{ name = "Booz Allen Hamilton" }]
+requires-python = ">=3.14"
+dependencies = [
+    "autoevals>=0.0.64",
+    "agentevals>=0.0.9",
+    "pydantic>=2.0.0",
+    "mlflow>=3.6.0",
+    "langfuse>=4.0.0",
+    "pyyaml>=6.0",
+    "foundry-agent-core>=1.2.0",
+]
+
+[project.optional-dependencies]
+braintrust = [
+    "braintrust>=0.0.129",
+]
+langchain = [
+    "langchain-core>=0.3.0",
+]
+strands = [
+    "strands-agents>=1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "agent-evals[braintrust,langchain,strands]",
+    "autoevals[scipy]",
+    "ruff>=0.9.9",
+    "ty>=0.0.43",
+    "pytest>=8.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "vulture>=2.0.0",
+    "pre-commit>=3.0.0",
+    "import-linter>=2.0.0",
+    "bandit>=1.9.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.bandit]
+exclude_dirs = ["tests", "openspec"]
+targets = ["src/agent_evals"]
+skips = ["B101"]
+
+[tool.ruff]
+# Set line length to 88 (Black's default)
+line-length = 88
+# Target Python 3.14+
+target-version = "py314"
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.md",
+]
+
+[tool.ruff.lint]
+# Enable recommended rule sets
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+# Ignore specific rules if needed
+ignore = []
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+# Allow longer lines in tests (docstrings and f-strings)
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.format]
+# Use double quotes (default, Black-compatible)
+quote-style = "double"
+# Use spaces for indentation (default)
+indent-style = "space"
+# Respect magic trailing commas
+skip-magic-trailing-comma = false
+# Auto-detect line endings
+line-ending = "auto"
+
+[tool.ty]
+# ty configuration - Astral's fast Python type checker
+
+[tool.ty.environment]
+# Target Python version (matches project requirement)
+python-version = "3.14"
+# Project root paths for module resolution (first-party module imports)
+root = ["./src", "./tests"]
+# Auto-discover .venv in project root
+python = "./.venv"
+
+[tool.ty.src]
+# Exclude scratch / local experiment directories from type checking.
+# These directories contain local prototype code that imports packages
+# ty can't always resolve (langchain_ollama, etc.) and aren't part of
+# the shipped library surface.
+exclude = [
+    ".scratch",
+    ".venv",
+    "tests",
+]
+
+[tool.ty.rules]
+# Configure rule severity levels (error, warn, ignore)
+# Enable common type checking rules with error severity
+possibly-unresolved-reference = "error"
+invalid-type-form = "error"
+invalid-type-guard-definition = "error"
+division-by-zero = "warn"
+
+# Python 3.14 deprecated the stdlib nturl2path module that
+# urllib.request.url2pathname reaches for on Windows; the public name this
+# reader calls is not itself deprecated. The warning fires on Windows and
+# not on Linux, so an inline suppression comment would be flagged as unused
+# on CI. Scoped here instead so every other file still fails on any
+# deprecation.
+[[tool.ty.overrides]]
+include = ["src/agent_evals/adapters/benchmark_config_readers/local_file.py"]
+
+[tool.ty.overrides.rules]
+deprecated = "ignore"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=70",
+]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may require external services)",
+    "requires_braintrust: Tests requiring the braintrust optional extra",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.coverage.run]
+source = ["src/agent_evals"]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\b.*:",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.vulture]
+# Minimum confidence level for reporting unused code (0-100)
+min_confidence = 80
+# Paths to scan for dead code
+paths = ["src", "tests"]
+# Exclude patterns (matched against absolute paths)
+# core/ports/*.py files define Protocols whose method parameters are the
+# contract — vulture flags them as unused because the body is `...`.
+exclude = [
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/build/*",
+    "*/dist/*",
+    "*/core/ports/*",
+]
+# Sort results by size (number of lines)
+sort_by_size = true
+# Verbose output
+verbose = false
+
+[tool.uv.sources]
+foundry-agent-core = {url = "https://github.com/boozallen/foundry-agent-packages/releases/download/foundry-agent-core/v1.2.0/foundry_agent_core-1.2.0-py3-none-any.whl"}

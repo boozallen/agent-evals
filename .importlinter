@@ -1,0 +1,93 @@
+; import-linter configuration for agent-evals.
+;
+; Enforces the hexagonal architecture contracts described in
+; docs/architecture.md and CLAUDE.md. Run locally with `uv run lint-imports`.
+
+[importlinter]
+root_package = agent_evals
+
+
+; ------------------------------------------------------------------
+; Contract 1 — Hexagonal layers
+; ------------------------------------------------------------------
+; Higher layers depend on lower, never the reverse:
+; ``_composition -> benchmark -> adapters -> core``.
+;
+; Whitelisted reverse edge:
+;   - ``agent_evals -> agent_evals._composition``: PEP 562 ``__getattr__``
+;     lazy-load of run_eval / run_eval_async at the package root.
+[importlinter:contract:hex-layers]
+name = Hexagonal Architecture Layers
+type = layers
+layers =
+    _composition
+    _readers
+    benchmark
+    adapters
+    core
+containers =
+    agent_evals
+exhaustive = True
+ignore_imports =
+    agent_evals -> agent_evals._composition
+    agent_evals -> agent_evals._readers
+
+
+; ------------------------------------------------------------------
+; Contract 2 — Adapter family independence
+; ------------------------------------------------------------------
+; All adapter families are peer-isolated. Adding a new family under
+; adapters/ becomes peer-isolated automatically — no edits to this
+; file required.
+[importlinter:contract:adapter-families]
+name = Adapter Family Independence
+type = independence
+modules =
+    agent_evals.adapters.*
+
+
+; ------------------------------------------------------------------
+; Contract 3 — Benchmark may import only stable abstractions
+; ------------------------------------------------------------------
+; The benchmark application layer may import:
+;   - The package root (agent_evals) for public-API names lazy-loaded
+;     via PEP 562 (run_eval_async, _compile_check, etc.)
+;   - Stable Protocol abstractions in core.ports (DIP)
+;   - Value types in core.checks, core.types
+;   - Its own internals (benchmark/*) — including benchmark.agent (BaseAgent)
+;
+; Everything else is forbidden. The forbidden_modules list names
+; exactly the implementation modules that must stay out of reach:
+; the eval engine (core.runner), the composition root (_composition),
+; and all concrete adapters (adapters.*). The ignore_imports list
+; then functions as an explicit allowlist of every legitimate edge
+; from the benchmark layer using the source-qualified
+; ``agent_evals.benchmark.* -> <target>`` form — making the source
+; context unmistakable to readers.
+;
+; IMPORTANT — source context:
+;   Every ignore_imports entry here has source = agent_evals.benchmark.*
+;   (a benchmark sub-module). The entries do NOT exempt agent_evals
+;   (the package root) from the rules above; that context is distinct.
+;
+; Wildcard syntax: import-linter v2 supports wildcards on both sides
+; of an ignore_imports entry. ``agent_evals.benchmark.* -> <target>``
+; matches any benchmark sub-module importing <target>, and
+; ``agent_evals.benchmark.* -> agent_evals.benchmark.*`` covers all
+; intra-benchmark sibling imports in a single line.
+[importlinter:contract:benchmark-public-surface]
+name = Benchmark may import only stable abstractions and the public API
+type = forbidden
+source_modules =
+    agent_evals.benchmark
+forbidden_modules =
+    agent_evals.core.runner
+    agent_evals._composition
+    agent_evals.adapters
+ignore_imports =
+    ; Allowed benchmark targets — source is always agent_evals.benchmark.*
+    agent_evals.benchmark.* -> agent_evals
+    agent_evals.benchmark.* -> agent_evals.core.ports
+    agent_evals.benchmark.* -> agent_evals.core.checks
+    agent_evals.benchmark.* -> agent_evals.core.types
+    agent_evals.benchmark.* -> agent_evals.benchmark.*

@@ -1,0 +1,77 @@
+schema: spec-driven
+
+context: |
+  ## Project: agent-evals
+
+  Platform-agnostic agent evaluation **library**, not an application.
+  Users depend on its public API from their own code, so stability
+  constraints are stricter than a typical app. Read `README.md`,
+  `CLAUDE.md`, and `docs/architecture.md` before proposing changes.
+
+  **What it does**: users call `run_eval` / `run_eval_async` with a task,
+  dataset, scorers, and a platform config object; adapters handle
+  everything platform-specific. For breadth-coverage benchmarking, users
+  subclass `agent_evals.BaseAgent` and call `run_benchmark_async`.
+
+  **Tech stack**: Python 3.11+, `uv`, Pydantic v2, pytest
+  (+ `pytest-asyncio`), `ty` (Astral's type checker, **not** mypy or
+  basedpyright), `ruff`, `vulture`, `import-linter`, `pip-audit`.
+
+  **Architecture**: Hexagonal (ports and adapters), mechanically enforced
+  by `import-linter` — a violation fails the build:
+  - `core/` never imports from `adapters/`. Core defines Protocol ports
+    and orchestrates; adapters implement them.
+  - The six adapter families under `adapters/` are strictly
+    peer-isolated. No cross-family import edges exist in either
+    direction. Success-check construction happens at the composition
+    root, not as a direct edge between families.
+  - `benchmark/` is an application layer above adapters and may import
+    only stable abstractions (Contract 3).
+  - The composition root is `src/agent_evals/__init__.py` — the only
+    place that wires adapters into core.
+
+  **Specs in this directory:**
+  - `openspec/specs/` — per-capability specs describing what the library
+    does now. Name them `<layer-or-family>-<capability>`
+    (e.g. `scorer-verdict-ownership`, `platform-task-call-contract`).
+    Read the relevant spec(s) before proposing a change.
+  - `openspec/changes/` — active proposals and `archive/` of completed
+    ones. Prefix a change directory with its Jira key when one exists
+    (e.g. `foundry-925-preserve-scorer-verdict`).
+
+
+
+  **Hard constraints**:
+  - Respect the architecture rules above. Run `uv run lint-imports`.
+  - `agent_evals.__all__` is the documented public contract, currently
+    **14 names**, mechanically pinned by
+    `tests/validation/test_backward_compatibility.py`. Adding a name
+    requires stating the documented user-need, that no existing public
+    path serves it, and a rationale for the table in `CLAUDE.md`.
+    Dropping one requires evidence of zero consumer use across the
+    known downstream repos.
+  - Use `typing.Protocol`, not `ABC`, for interfaces. Duck-typed scorers
+    are a feature. The one deliberate exception is `BaseAgent`, a
+    user-facing template.
+  - Extend via the `context` dict on `TaskResult` / `ExpectedResult`,
+    never by adding parameters to port methods.
+  - All core types are Pydantic v2. Datasets are `list[ExampleData]`,
+    never `list[dict]`.
+  - Async-first: `run_eval_async` and `run_benchmark_async` are the
+    public async entry points. New I/O paths should be async.
+  - Examples live in a separate repo (`agent-evals-examples`). Do not
+    add example files here.
+  - Conventional commits; scopes map to a layer (`core`, `adapters`,
+    `scorers`) or an adapter name (`braintrust`, `mlflow`).
+  - Open pull requests against `develop`, not `main`.
+
+  **Verification gates** — all four must pass before any task is marked
+  complete. There is no `justfile` in this repo; run them directly:
+
+      uv run pytest
+      uv run ruff check . && uv run ruff format .
+      uv run ty check
+      uv run lint-imports
+
+  **Release model**: pre-1.0 (`0.x`). Breaking changes land in minor
+  versions; surface-area changes do not require a major bump.

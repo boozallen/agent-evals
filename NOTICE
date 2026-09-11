@@ -1,0 +1,16 @@
+Agent Evals
+Copyright 2026 Booz Allen Hamilton, Inc.
+
+---
+
+Third-Party Attribution
+
+The optional braintrust extra transitively includes text-unidecode,
+a Python port of the Perl Text::Unidecode module.
+
+  Name: text-unidecode
+  Version: 1.3
+  Author: Mikhail Korobov
+  License: Artistic License 1.0
+  Source: https://github.com/kmike/text-unidecode/
+  PyPI: https://pypi.org/project/text-unidecode/

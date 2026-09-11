@@ -1,0 +1,28 @@
+benchmark: home-lights-langfuse-v1
+description: End-to-end fixture for run_benchmark_async on platform=langfuse
+platform:
+  name: langfuse
+  experiment: home-lights-langfuse-t1
+capabilities:
+- name: lights
+  scenarios:
+  - id: 1
+    name: kitchen on
+    prompt: Turn on the kitchen light
+    dimensions:
+      phrasing: imperative
+      depth: literal
+    success:
+      state:
+        lights.kitchen.state: 'on'
+- name: doors
+  scenarios:
+  - id: 2
+    name: lock front door
+    prompt: Lock the front door
+    dimensions:
+      phrasing: imperative
+      depth: literal
+    success:
+      state:
+        doors.front: locked

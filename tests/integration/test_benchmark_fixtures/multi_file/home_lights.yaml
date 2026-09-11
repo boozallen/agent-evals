@@ -1,0 +1,8 @@
+benchmark: home-lights-v1
+description: Integration test for lights + front door
+platform:
+  name: local
+  experiment: home-lights-t1
+capabilities:
+  - file://capabilities/lights.yaml
+  - file://capabilities/doors.yaml

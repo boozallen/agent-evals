@@ -1,0 +1,33 @@
+benchmark: home-lights-v1
+description: Integration test for lights + front door
+platform:
+  name: local
+  experiment: home-lights-t1
+capabilities:
+- name: lights
+  scenarios:
+  - id: 1
+    name: kitchen on
+    prompt: Turn on the kitchen light
+    dimensions:
+      phrasing: imperative
+      depth: literal
+    success:
+      state:
+        lights.kitchen.state: 'on'
+- name: doors
+  scenarios:
+  - id: 2
+    name: lock front door
+    prompt: Lock the front door
+    dimensions:
+      phrasing: imperative
+      depth: literal
+    success:
+      state:
+        doors.front: locked
+      tool_use:
+        calls:
+        - name: lock_door
+          args:
+            door: front

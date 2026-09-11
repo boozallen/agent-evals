@@ -1,0 +1,60 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+*.cover
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Test outputs
+.pytest_cache/
+.tox/
+
+# Local evaluation results (for development/testing)
+local_eval_results/
+local/
+
+# Scratch directory for local experiments (not part of the library)
+.scratch/
+
+# Claude Code local state + nested worktrees (avoid embedding them as gitlinks)
+.claude/worktrees/
+.claude/settings.local.json
+
+# STIG assessment scratch — the checklist is tracked, these are not
+security/*.html
+security/*.bak
+.stig-diff/
+
+# foundry-qakit
+.foundry-qakit/
+
+# memsearch tool artifacts
+.memsearch/

@@ -1,0 +1,64 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.6
+    hooks:
+      # Run the linter
+      - id: ruff-check
+        args: [--fix, "--config=pyproject.toml"]
+        types_or: [python, pyi]
+      # Run the formatter
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Type checking with ty (using local hook since ty doesn't have official pre-commit support)
+  # Check all code: src, tests, and examples (best practice per industry standards)
+  - repo: local
+    hooks:
+      - id: vulture
+        name: vulture
+        entry: uv run --locked vulture --min-confidence 80 src tests
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: ty
+        name: ty type checker
+        entry: uv run --locked ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest
+        name: pytest (unit tests)
+        entry: uv run --locked pytest tests/unit -x --tb=short -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: import-linter
+        name: import-linter (architecture enforcement)
+        entry: uv run --locked lint-imports
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: mixed-line-ending

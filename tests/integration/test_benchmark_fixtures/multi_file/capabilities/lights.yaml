@@ -1,0 +1,11 @@
+name: lights
+scenarios:
+- id: 1
+  name: kitchen on
+  prompt: Turn on the kitchen light
+  dimensions:
+    phrasing: imperative
+    depth: literal
+  success:
+    state:
+      lights.kitchen.state: 'on'
