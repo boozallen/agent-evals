@@ -131,13 +131,6 @@ jobs:
       - name: Configure git for token auth
         run: git config --global url."https://x-access-token:${{ github.token }}@github.com/".insteadOf "https://github.com/"
 
-      # A bare `pip install <wheel>` cannot resolve foundry-agent-core: the
-      # [tool.uv.sources] GitHub-Release-wheel override is a uv-project-
-      # resolution concept and never propagates into a built wheel's own
-      # Requires-Dist metadata (confirmed empirically during the 1.0.0
-      # release). The real, documented install path is a git dependency
-      # pinned to this tag, which resolves against the tagged commit's own
-      # pyproject.toml/uv.lock — so that's what this validates instead.
       - name: Validate install and import (git dependency, pinned to this tag)
         run: |
           mkdir -p /tmp/install-validation
