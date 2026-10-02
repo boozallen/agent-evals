@@ -204,5 +204,12 @@ sort_by_size = true
 # Verbose output
 verbose = false
 
+[tool.uv]
+# Security floor for a transitive dependency (via mcp), not a direct
+# dependency of this project. 2.13.0 carries GHSA-ffc3-869f-jxw9
+# (critical): PEM-detection bypass lets a mutated public key skip the
+# HS/asymmetric confusion guard. Fixed in 2.14.0.
+constraint-dependencies = ["pyjwt>=2.14.0"]
+
 [tool.uv.sources]
 foundry-agent-core = {url = "https://github.com/boozallen/foundry-agent-packages/releases/download/foundry-agent-core/v1.2.0/foundry_agent_core-1.2.0-py3-none-any.whl"}
